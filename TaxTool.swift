@@ -14,7 +14,7 @@ class TaxTool {
 	
 	let urlString = "http://qpublic9.qpublic.net/hi_hawaii_display.php"
 	let countyQueryItem = URLQueryItem(name: "county", value: "hi_hawaii")
-	var csvText = "mailingAddress,locationAddress,taxInfo\n"
+	var csvText = "tmk,mailingAddress,locationAddress,taxInfo\n"
 	
 	// Local CVS info to write data to
 	let csvName = "taxInfo.csv"
@@ -101,7 +101,7 @@ class TaxTool {
 			guard let taxInformation = parseTaxInfoFrom(htmlString) else { return }
 			
 			
-			let newLine = "\(mailingAddress),\(locationAddress),\(taxInformation)\n"
+			let newLine = "\(tmk),\(mailingAddress),\(locationAddress),\(taxInformation)\n"
 			csvText.append(newLine)
 			
 			print("That one went well! Onto the next...")
