@@ -14,7 +14,7 @@ class TaxTool {
 	
 	let urlString = "http://qpublic9.qpublic.net/hi_hawaii_display.php"
 	let countyQueryItem = URLQueryItem(name: "county", value: "hi_hawaii")
-	var csvText = "tmk,mailingAddress,locationAddress,taxInfo\n"
+	var csvText = "tmk,mailingAddress,backTaxYears,backTaxTotal\n"
 	
 	// Local CVS info to write data to
 	let csvName = "taxInfo.csv"
@@ -97,11 +97,11 @@ class TaxTool {
 		if let htmlString = try? String(contentsOf: url) {
 			
 			guard let mailingAddress = parseMailingAddressFrom(htmlString) else { return }
-			guard let locationAddress = parseLocationAddressFrom(htmlString) else { return }
-			guard let taxInformation = parseTaxInfoFrom(htmlString) else { return }
+			// guard let locationAddress = parseLocationAddressFrom(htmlString) else { return }
+			let taxInformation = parseTaxInfoFrom(htmlString)
 			
 			
-			let newLine = "\(tmk),\(mailingAddress),\(locationAddress),\(taxInformation)\n"
+			let newLine = "\(tmk),\(mailingAddress),\(taxInformation.years),\(taxInformation.total)\n"
 			csvText.append(newLine)
 			
 			print("That one went well! Onto the next...")
@@ -119,7 +119,12 @@ class TaxTool {
 		let mailingAddressComponents = prefixedMailingAddress.components(separatedBy: "&nbsp;")
 		
 		if let componentOne = mailingAddressComponents[safe: 1], let componentTwo = mailingAddressComponents[safe: 2] {
-			return (componentOne + componentTwo).replacingOccurrences(of: "<br>", with: " ")
+			let mailingAddress = (componentOne + componentTwo).replacingOccurrences(of: "<br>", with: " ").replacingOccurrences(of: ",", with: "")
+			if mailingAddress.contains("Parcel Number") {
+				return "No Mailing Address"
+			} else {
+				return mailingAddress
+			}
 		} else {
 			return nil
 		}
@@ -135,13 +140,35 @@ class TaxTool {
 		return locationAddressComponents[safe: 1]
 	}
 	
-	private func parseTaxInfoFrom(_ htmlString: String) -> String? {
+	private func parseTaxInfoFrom(_ htmlString: String) -> (years: String, total: String) {
 		
-		guard let rawTaxInfo = htmlString.components(separatedBy: "Amount<br>Due")[safe: 1] else { return nil }
-		guard let prefixedTaxInfo = rawTaxInfo.components(separatedBy: "$")[safe: 1] else { return nil }
-		guard let spacedTaxedInfo = prefixedTaxInfo.components(separatedBy: "</B>")[safe: 0] else { return nil }
+		let sanitizedData = htmlString.replacingOccurrences(of: "&nbsp;", with: "")
+		let moreData = sanitizedData.replacingOccurrences(of: "  ", with: "")
+		let rawTaxInfo = moreData.components(separatedBy: "Current Tax Bill Information")[safe: 1]
+		let taxInfo = rawTaxInfo?.components(separatedBy: "</B>")[safe: 0]
 		
-		return spacedTaxedInfo.trimmingCharacters(in: .whitespaces)
+		guard var taxRows = taxInfo?.components(separatedBy: "<tr>") else { return (years: "", total: "$0.00") }
+		
+		taxRows.removeFirst()
+		taxRows.removeFirst()
+		
+		var backTaxData: [String] = taxRows.map { row in
+			
+			let rawValue = row.components(separatedBy: "<td class=\"sales_value\">")[safe: 1] ?? String()
+			return rawValue.replacingOccurrences(of: "</td>", with: "")
+				.replacingOccurrences(of: "<B>", with: "")
+				.replacingOccurrences(of: " ", with: "")
+		}
+		
+		if backTaxData.count == 0 {
+			return (years: "", total: "$0.00")
+		} else if backTaxData.count == 1 {
+			return (years: "", total: backTaxData[0].replacingOccurrences(of: ",", with: ""))
+		} else {
+			let total = backTaxData.removeLast()
+			let years = "\(backTaxData.first!)-\(backTaxData.last!)"
+			return (years: years, total: total.replacingOccurrences(of: ",", with: ""))
+		}
 	}
 	
 	private func setParcelString() throws {
