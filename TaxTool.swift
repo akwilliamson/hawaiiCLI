@@ -265,7 +265,15 @@ class TaxTool {
 		loadTMKs()
 		
 		print("**********************************************************")
-		print("Welcome to Aaron's special Parcel Search Command Line Tool")
+		print("Welcome to Andrew's special Parcel Search Command Line Tool")
+		print("S")
+		print("H")
+		print("A")
+		print("K")
+		print("A")
+		print("B")
+		print("R")
+		print("A")
 		print("**********************************************************\n")
 		print("This tool is currently designed for parcel searches strictly on the Big Island\n")
 		
