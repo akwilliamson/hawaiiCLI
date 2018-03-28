@@ -52,7 +52,7 @@ class TaxTool {
 	
 	private func loadTMKs() {
 		let string = try? String(contentsOfFile: "./tmk.csv")
-		tmks = string?.components(separatedBy: "\r\n")
+		tmks = string?.components(separatedBy: "\n")
 	}
 	
 	private func setUpParselDataFetch(forRange: Bool = false) throws {
