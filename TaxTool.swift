@@ -21,7 +21,15 @@ class TaxTool {
 	
 	var zoneNum: Int?    { didSet { try? captureUserInputFor(.section) }}
 	var sectionNum: Int? { didSet { try? captureUserInputFor(.plat) }}
-	var platNum: Int?    { didSet { try? captureUserInputFor(.parcel) }}
+	var platNum: Int?    {
+		didSet {
+			if platNum! == 1970 {
+				try? setParcelString()
+			} else {
+				try? captureUserInputFor(.parcel)
+			}
+		}
+	}
 	var parcelNum: Int?  { didSet { try? setParcelString() }}
 	
 	typealias ParcelData = (mailing: String, location: String, taxes: String)
@@ -61,10 +69,9 @@ class TaxTool {
 		
 		if forRange {
 			let relevantTMKs = tmks?.filter { $0.hasPrefix("3\(tmk)") }
-			print("There are \(relevantTMKs?.count ?? 0) parcels within \(tmk)")
+			print("There are \(relevantTMKs?.count ?? 0) items within \(tmk)")
 			print("Fetching parsel data for all these mofos. Hang tight...")
 			relevantTMKs?.forEach { relevantTMK in
-				sleep(1)
 				var formattedTMK = relevantTMK
 				formattedTMK.removeFirst()
 				let properString = formattedTMK + "0000"
@@ -172,15 +179,18 @@ class TaxTool {
 	}
 	
 	private func setParcelString() throws {
-		
-		guard let zone = zoneNum, let section = sectionNum, let plat = platNum, let parcel = parcelNum else {
+		guard let zone = zoneNum, let section = sectionNum, let plat = platNum else {
 			throw TaxError.unknown
 		}
 		
 		let zoneString    = String(describing: zone)
 		let sectionString = String(describing: section)
 		var platString    = String(describing: plat)
-		var parcelString  = String(describing: parcel)
+		var parcelString  = String()
+		
+		if let parcel = parcelNum {
+			parcelString = String(describing: parcel)
+		}
 		
 		if platString.count == 1 { platString = "00\(platString)" }
 		if platString.count == 2 { platString =  "0\(platString)" }
@@ -188,7 +198,11 @@ class TaxTool {
 		if parcelString.count == 1 { parcelString = "00\(parcelString)" }
 		if parcelString.count == 2 { parcelString =  "0\(parcelString)" }
 		
-		if parcelString == "1970" {
+		if platString == "1970" {
+			// A plat string was NOT inputted, use plat range to fetch parcel data
+			fullTMKString = "\(zoneString)\(sectionString)"
+			try? setUpParselDataFetch(forRange: true)
+		} else if parcelString == "1970" {
 			// A parcel string was NOT inputted, use plat range to fetch parcel data
 			fullTMKString = "\(zoneString)\(sectionString)\(platString)"
 			try? setUpParselDataFetch(forRange: true)
@@ -224,9 +238,23 @@ class TaxTool {
 	}
 	
 	private func capturePlatNum() throws -> Int {
-		print("Enter a Plat number between 1-999:")
-		guard let input = Int(readLine() ?? String()) else { throw TaxError.invalidInput }
-		return try validated(input, forType: .plat)
+		print("Do you want to enter a specific plat number? y/n:")
+		let input = readLine()?.lowercased() ?? "n"
+		print(input)
+		if input != "y" && input != "n" {
+			throw TaxError.invalidInput
+		} else {
+			switch input {
+			case "y":
+				print("Enter a Plat number between 1-999:")
+				guard let input = Int(readLine() ?? String()) else { throw TaxError.invalidInput }
+				return try validated(input, forType: .plat)
+			case "n":
+				return 1970 // Special value: gather tax info for all parcels within the given plat
+			default:
+				throw TaxError.unknown
+			}
+		}
 	}
 	
 	private func captureParcelNum() throws -> Int {
