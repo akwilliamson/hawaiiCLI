@@ -14,7 +14,7 @@ class TaxTool {
 	
 	let urlString = "http://qpublic9.qpublic.net/hi_hawaii_display.php"
 	let countyQueryItem = URLQueryItem(name: "county", value: "hi_hawaii")
-	var csvText = "tmk,mailingAddress,backTaxYears,backTaxTotal\n"
+	var csvText = "tmk,name,mailingAddress,backTaxYears,backTaxTotal\n"
 	
 	// Local CVS info to write data to
 	let csvName = "taxInfo.csv"
@@ -102,13 +102,28 @@ class TaxTool {
 		print("Grabbing data for parcel at: \(url)")
 		
 		if let htmlString = try? String(contentsOf: url) {
+            
+            let taxInformation = parseTaxInfoFrom(htmlString)
+            
+            if !taxInformation.years.contains("2016") {
+                print("Tax information for this one doesn't contain 2016.")
+                return
+            } else {
+                print("SOLID TAX INFO! \(taxInformation)")
+            }
 			
-			guard let mailingAddress = parseMailingAddressFrom(htmlString) else { return }
+			guard let mailingAddress = parseMailingAddressFrom(htmlString) else {
+                print("No mailing address for this one.")
+                return
+            }
 			// guard let locationAddress = parseLocationAddressFrom(htmlString) else { return }
-			let taxInformation = parseTaxInfoFrom(htmlString)
+            
+            guard let names = parseNamesFrom(htmlString) else {
+                print("No names exist for this one.")
+                return
+            }
 			
-			
-			let newLine = "\(tmk),\(mailingAddress),\(taxInformation.years),\(taxInformation.total)\n"
+			let newLine = "\(tmk),\(names),\(mailingAddress),\(taxInformation.years),\(taxInformation.total)\n"
 			csvText.append(newLine)
 			
 			print("That one went well! Onto the next...")
@@ -117,6 +132,24 @@ class TaxTool {
 			return
 		}
 	}
+    
+    private func parseNamesFrom(_ htmlString: String) -> String? {
+        
+        let smallString = htmlString.components(separatedBy: "Owner Name").last
+        let smallerString = smallString?.components(separatedBy: "owner_header").first
+        let smallestString = smallerString?.components(separatedBy: "owner_value").last
+        let FINALSTRING = smallestString?.components(separatedBy: "&nbsp;")
+        var names = String()
+        
+        FINALSTRING?.forEach {
+            if $0.contains(",") && !$0.contains("<br>") {
+                let name = $0.replacingOccurrences(of: ",", with: ".")
+                names += "\(name) & "
+            }
+        }
+        
+        return names
+    }
 	
 	private func parseMailingAddressFrom(_ htmlString: String) -> String? {
 		
